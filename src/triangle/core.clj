@@ -39,107 +39,88 @@
 ;; - Minerals must have a minimum of three measures of area to be harvested
 ;; - If no minerals can be harvested from the rock, your function should return nil
 
-(defn int2bit [n]
-  (letfn [(int2bit-r
-            [n]
-            (if (< n 2) (list n) (conj (int2bit-r (quot n 2)) (rem n 2))))]
-    (vec (reverse (int2bit-r n)))))
-
-
-(defn make-matrix [v]
-  (let [m (map int2bit v)
-        dim-m (apply max (map count m))]
-    (vec (for [i m :let [p (repeat (- dim-m (count i)) 0)]]
-           (if (empty? p)
-             i
-             (vec (concat p i)))))))
-
-
-(defn make-loc [m]
-  (vec (filter #(not (nil? %))
-               (for [i (range (count m)), j (range (count (first m)))]
-                 (if (= 1 (get-in m [i j]))
-                   [i j]
-                   nil)))))
-
-
-(defn shift-shape [s loc]
-  (vec (map (fn [v] [(+ (first v) (first loc)) (+ (last v) (last loc))]) s)))
-
-;; e.g., shape = [[0 0] [0 1] [0 2] [1 0] [1 1] [2 0]], loc = [4 5]
-;;
-(defn shape-in-matrix-at-loc? [m s loc]
-  (let [shifted-s (set (shift-shape s loc))]
-    (clojure.set/subset? shifted-s (set (make-loc m)))))
-
-
-(defn shape-in-matrix? [m s]
-  (reduce #(or %1 %2)
-          false
-          (for [i (range (count m)), j (range (count (first m)))]
-            (shape-in-matrix-at-loc? m s [i j]))))
-
-
-;; (defn shape-in-matrix? [m s]
-;;   (for [i (range (count m)), j (range (count (first m)))]
-;;     (shape-in-matrix-at-loc? m s [i j])))
-
-
-(defn shape-1 [n]
-  (cond (zero? n) [[0 0] [1 0] [1 1]]
-        :else (vec (concat (shape-1 (dec n))
-                           (for [i (range (+ n 2))] [(inc n) i])))))
-
-
-(defn shape-2 [n]
-  (cond (zero? n) [[0 0] [-1 1] [0 1] [1 1]]
-        :else (vec (concat (shape-2 (dec n))
-                           (for [i (range (inc (* (inc n) 2)))] [(- (inc n) i) (inc n)])))))
-
-
-(defn transpose [m]
-  (vec (apply map vector m)))
-
-
-(defn rot-90 [m]
-  (vec (map #(vec (reverse %)) (transpose m))))
-
-
-(defn build-matrices [m]
-  (let [m1 (rot-90 m)
-        m2 (rot-90 m1)
-        m3 (rot-90 m2)
-        m4 (transpose m)
-        m5 (rot-90 m4)
-        m6 (rot-90 m5)
-        m7 (rot-90 m6)]
-    [m m1 m2 m3 m4 m5 m6 m7]))
 
 
 (defn triangle [v]
-  (let [m (make-matrix v)
-        dim-m (min (count m) (count (first m)))
-        shapes (vec
-                (reverse
-                 (sort-by count
-                          (concat (for [i (reverse (range dim-m))] (shape-1 i))
-                                  (for [i (reverse (range dim-m))] (shape-2 i))))))
-        matrices (build-matrices m)
-        m-locs (vec (map make-loc matrices))]
-    (loop [found? (reduce #(or %1 %2)
-                          false
-                          (map #(shape-in-matrix? % (first shapes))
-                               matrices))
-           res (if (true? found?) (count (first shapes)) nil)
-           curr-shapes (rest shapes)]
-      (cond (true? found?) res
-            (empty? curr-shapes) res
-            :else (let [curr-found? (reduce #(or %1 %2)
-                                            false
-                                            (map #(shape-in-matrix? % (first curr-shapes))
-                                                 matrices))]
-                    (recur (true? curr-found?)
+  (letfn [(int2bit [n]
+            (letfn [(int2bit-r
+                      [n]
+                      (if (< n 2)
+                        (list n)
+                        (conj (int2bit-r (quot n 2)) (rem n 2))))]
+              (vec (reverse (int2bit-r n)))))
+          (make-matrix [v]
+            (let [m (map int2bit v)
+                  dim-m (apply max (map count m))]
+              (vec (for [i m :let [p (repeat (- dim-m (count i)) 0)]]
+                     (if (empty? p)
+                       i
+                       (vec (concat p i)))))))
+          (make-loc [m]
+            (vec (filter #(not (nil? %))
+                         (for [i (range (count m)), j (range (count (first m)))]
+                           (if (= 1 (get-in m [i j]))
+                             [i j]
+                             nil)))))
+          (shift-shape [s loc]
+            (vec
+             (map (fn [v] [(+ (first v) (first loc))
+                          (+ (last v) (last loc))])
+                  s)))
+          (shape-in-matrix-at-loc? [m s loc]
+            (let [shifted-s (set (shift-shape s loc))]
+              (clojure.set/subset? shifted-s (set (make-loc m)))))
+          (shape-in-matrix? [m s]
+            (reduce #(or %1 %2)
+                    false
+                    (for [i (range (count m)), j (range (count (first m)))]
+                      (shape-in-matrix-at-loc? m s [i j]))))
+          (shape-1 [n]
+            (cond (zero? n) [[0 0] [1 0] [1 1]]
+                  :else (vec (concat (shape-1 (dec n))
+                                     (for [i (range (+ n 2))] [(inc n) i])))))
+          (shape-2 [n]
+            (cond (zero? n) [[0 0] [-1 1] [0 1] [1 1]]
+                  :else (vec
+                         (concat
+                          (shape-2 (dec n))
+                          (for [i (range (inc (* (inc n) 2)))] [(- (inc n) i) (inc n)])))))
+          (transpose [m]
+            (vec (apply map vector m)))
+          (rot-90 [m]
+            (vec (map #(vec (reverse %)) (transpose m))))
+          (build-matrices [m]
+            (let [m1 (rot-90 m)
+                  m2 (rot-90 m1)
+                  m3 (rot-90 m2)
+                  m4 (transpose m)
+                  m5 (rot-90 m4)
+                  m6 (rot-90 m5)
+                  m7 (rot-90 m6)]
+              [m m1 m2 m3 m4 m5 m6 m7]))]
+    (let [m (make-matrix v)
+          dim-m (min (count m) (count (first m)))
+          shapes (vec
+                  (reverse
+                   (sort-by count
+                            (concat (for [i (reverse (range dim-m))] (shape-1 i))
+                                    (for [i (reverse (range dim-m))] (shape-2 i))))))
+          matrices (build-matrices m)
+          m-locs (vec (map make-loc matrices))]
+      (loop [found? (reduce #(or %1 %2)
+                            false
+                            (map #(shape-in-matrix? % (first shapes))
+                                 matrices))
+             res (if (true? found?) (count (first shapes)) nil)
+             curr-shapes (rest shapes)]
+        (cond (true? found?) res
+              (empty? curr-shapes) res
+              :else (let [curr-found? (reduce #(or %1 %2)
+                                              false
+                                              (map #(shape-in-matrix? % (first curr-shapes))
+                                                   matrices))]
+                      (recur (true? curr-found?)
                            (if (true? curr-found?)
                              (count (first curr-shapes))
                              nil)
-                           (rest curr-shapes)))))))
+                           (rest curr-shapes))))))))
