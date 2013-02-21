@@ -1,7 +1,6 @@
 (ns triangle.core)
 
 
-
 ;; Love Triangle #127
 ;;
 ;; Difficulty:	Hard
@@ -86,10 +85,16 @@
 ;;     (shape-in-matrix-at-loc? m s [i j])))
 
 
-(defn shape [n]
+(defn shape-1 [n]
   (cond (zero? n) [[0 0] [1 0] [1 1]]
-        :else (vec (concat (shape (dec n))
+        :else (vec (concat (shape-1 (dec n))
                            (for [i (range (+ n 2))] [(inc n) i])))))
+
+
+(defn shape-2 [n]
+  (cond (zero? n) [[0 0] [-1 1] [0 1] [1 1]]
+        :else (vec (concat (shape-2 (dec n))
+                           (for [i (range (inc (* (inc n) 2)))] [(- (inc n) i) (inc n)])))))
 
 
 (defn transpose [m]
@@ -113,9 +118,12 @@
 
 (defn triangle [v]
   (let [m (make-matrix v)
-        dim-x (count m)
-        dim-y (count (first m))
-        shapes (for [i (reverse (range (min dim-x dim-y)))] (shape i))
+        dim-m (min (count m) (count (first m)))
+        shapes (vec
+                (reverse
+                 (sort-by count
+                          (concat (for [i (reverse (range dim-m))] (shape-1 i))
+                                  (for [i (reverse (range dim-m))] (shape-2 i))))))
         matrices (build-matrices m)
         m-locs (vec (map make-loc matrices))]
     (loop [found? (reduce #(or %1 %2)
@@ -127,37 +135,11 @@
       (cond (true? found?) res
             (empty? curr-shapes) res
             :else (let [curr-found? (reduce #(or %1 %2)
-                                     false
-                                     (map #(shape-in-matrix? % (first curr-shapes))
-                                          matrices))]
+                                            false
+                                            (map #(shape-in-matrix? % (first curr-shapes))
+                                                 matrices))]
                     (recur (true? curr-found?)
                            (if (true? curr-found?)
                              (count (first curr-shapes))
                              nil)
                            (rest curr-shapes)))))))
-
-
-;; (defn triangle [v]
-;;   (let [m (make-matrix v)
-;;         dim-x (count m)
-;;         dim-y (count (first m))
-;;         shapes (for [i (reverse (range (min dim-x dim-y)))] (shape i))
-;;         matrices (build-matrices m)
-;;         m-locs (vec (map make-loc matrices))]
-;;     (loop [found? (reduce #(or %1 %2)
-;;                           false
-;;                           (map #(shape-in-matrix? % (first shapes))
-;;                                matrices))
-;;            res (if (true? found?) (count (first shapes)) nil)
-;;            curr-shapes (rest shapes)]
-;;       (cond (true? found?) res
-;;             (empty? curr-shapes) res
-;;             :else (let [curr-found? (reduce #(or %1 %2)
-;;                                      false
-;;                                      (map #(shape-in-matrix? % (first curr-shapes))
-;;                                           matrices))]
-;;                     (recur (true? curr-found?)
-;;                            (if (true? curr-found?)
-;;                              (count (first curr-shapes))
-;;                              nil)
-;;                            (rest curr-shapes)))))))
